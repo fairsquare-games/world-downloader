@@ -1,0 +1,11 @@
+name: world-downloader
+version: ${project.version}
+main: net.fairsquare.worlddownloader.WorldDownloader
+authors: [McJeffr]
+description: Allows you to download your Minecraft world off the server
+website: https://fairsquare.net
+commands:
+  downloadworld:
+    description: Downloads the world that you are currently in
+    usage: /<command>
+    permission: worlddownloader.download
