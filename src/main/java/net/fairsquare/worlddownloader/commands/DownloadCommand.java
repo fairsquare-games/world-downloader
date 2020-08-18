@@ -1,9 +1,13 @@
 package net.fairsquare.worlddownloader.commands;
 
-import net.fairsquare.worlddownloader.Message;
 import net.fairsquare.worlddownloader.WorldDownloader;
-import net.fairsquare.worlddownloader.tasks.ZipCallback;
+import net.fairsquare.worlddownloader.models.Message;
+import net.fairsquare.worlddownloader.tasks.AsyncCallback;
+import net.fairsquare.worlddownloader.tasks.WebUploaderTask;
 import net.fairsquare.worlddownloader.tasks.ZipTask;
+import net.md_5.bungee.api.chat.BaseComponent;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -77,12 +81,12 @@ public class DownloadCommand implements CommandExecutor {
                           final File destination) {
         Message.CREATING_ZIP.send(sender, worldDirectory.getName());
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-off");
-        ZipTask zipTask = new ZipTask(plugin, worldDirectory, destination, new ZipCallback() {
+        ZipTask zipTask = new ZipTask(plugin, worldDirectory, destination, new AsyncCallback<File>() {
             @Override
-            public void onComplete() {
+            public void onComplete(File response) {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-on");
                 Message.CREATED_ZIP.send(sender, worldDirectory.getName());
-                //TODO: Continue from here with uploading...
+                uploadWorld(sender, response);
             }
 
             @Override
@@ -94,8 +98,31 @@ public class DownloadCommand implements CommandExecutor {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, zipTask);
     }
 
-    private void uploadWorld() {
+    private void uploadWorld(final CommandSender sender, final File zipFile) {
+        Message.UPLOADING_ZIP.send(sender);
+        WebUploaderTask uploadTask = new WebUploaderTask(plugin, zipFile, new AsyncCallback<String>() {
+            @Override
+            public void onComplete(String response) {
+                Message.UPLOADED_ZIP.send(sender);
 
+                BaseComponent[] components = Message.DOWNLOAD_URL.getTextComponent(response);
+                if (components.length < 2 || !(components[1] instanceof TextComponent)) {
+                    System.out.println("invalid response");
+                    return;
+                }
+                TextComponent textComponent = (TextComponent) components[1];
+                textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, response));
+                components[1] = textComponent;
+                sender.spigot().sendMessage(textComponent);
+            }
+
+            @Override
+            public void onFailure(Exception ex) {
+                Message.ERROR_UPLOADING_ZIP.send(sender);
+                Bukkit.getLogger().log(Level.SEVERE, "Could not upload zip archive", ex);
+            }
+        });
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, uploadTask);
     }
 
     private File getDataFolder() {

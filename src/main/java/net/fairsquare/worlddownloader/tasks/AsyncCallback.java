@@ -1,8 +1,8 @@
 package net.fairsquare.worlddownloader.tasks;
 
-public interface ZipCallback {
+public interface AsyncCallback<T> {
 
-    void onComplete();
+    void onComplete(T response);
     void onFailure(Exception ex);
 
 }

@@ -1,0 +1,4 @@
+uploaders:
+  web:
+    upload-url: http://localhost:3000/
+    download-url: http://localhost:3000/

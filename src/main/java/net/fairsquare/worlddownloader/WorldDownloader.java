@@ -7,6 +7,7 @@ public final class WorldDownloader extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        this.saveDefaultConfig();
         this.getCommand("downloadworld").setExecutor(new DownloadCommand(this));
     }
 

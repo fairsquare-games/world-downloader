@@ -1,4 +1,4 @@
-package net.fairsquare.worlddownloader;
+package net.fairsquare.worlddownloader.models;
 
 
 import net.md_5.bungee.api.ChatColor;
@@ -17,8 +17,10 @@ public enum Message {
     CREATING_ZIP("&eZipping world &6%1$s&e..."),
     CREATED_ZIP("&eZipped world &6%1$s&e!"),
     ERROR_CREATING_ZIP("&cAn exception occurred whilst trying to create a zip archive. Please contact an administrator."),
-    UPLOADING_ZIP("&eUploading world &6%1$s&e..."),
-    UPLOADED_ZIP("&Uploaded world &6%1$s&e!");
+    ERROR_UPLOADING_ZIP("&cAn exception occurred whilst trying to upload the zip archive. Please contact an administrator."),
+    UPLOADING_ZIP("&eUploading zip archive..."),
+    UPLOADED_ZIP("&eUploaded zip archive!"),
+    DOWNLOAD_URL("&eYou can download the world from the following URL: &6%1$s&e.");
 
     private final String text;
 

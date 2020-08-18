@@ -78,5 +78,10 @@
             <version>1.14</version>
             <type>jar</type>
         </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.8.1</version>
+        </dependency>
     </dependencies>
 </project>
