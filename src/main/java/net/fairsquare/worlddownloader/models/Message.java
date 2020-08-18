@@ -34,7 +34,7 @@ public enum Message {
     }
 
     public BaseComponent[] getTextComponent(Object... args) {
-        return TextComponent.fromLegacyText(getText(args));
+        return TextComponent.fromLegacyText(Message.PREFIX.getText() + getText(args));
     }
 
     public void send(CommandSender target, Object... args) {

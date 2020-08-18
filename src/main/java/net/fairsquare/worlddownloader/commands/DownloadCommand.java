@@ -7,7 +7,6 @@ import net.fairsquare.worlddownloader.tasks.WebUploaderTask;
 import net.fairsquare.worlddownloader.tasks.ZipTask;
 import net.md_5.bungee.api.chat.BaseComponent;
 import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -141,18 +140,15 @@ public class DownloadCommand implements CommandExecutor {
         WebUploaderTask uploadTask = new WebUploaderTask(plugin, zippedWorldDirectory,
                 new AsyncCallback<String>() {
                     @Override
-                    public void onComplete(String response) {
+                    public void onComplete(String downloadUrl) {
                         Message.UPLOADED_ZIP.send(sender);
 
-                        BaseComponent[] components = Message.DOWNLOAD_URL.getTextComponent(response);
-                        if (components.length < 2 || !(components[1] instanceof TextComponent)) {
-                            System.out.println("invalid response");
-                            return;
+                        BaseComponent[] components = Message.DOWNLOAD_URL.getTextComponent(downloadUrl);
+                        for (BaseComponent component : components) {
+                            component.setClickEvent(
+                                    new ClickEvent(ClickEvent.Action.OPEN_URL, downloadUrl));
                         }
-                        TextComponent textComponent = (TextComponent) components[1];
-                        textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, response));
-                        components[1] = textComponent;
-                        sender.spigot().sendMessage(textComponent);
+                        sender.spigot().sendMessage(components);
                     }
 
                     @Override
