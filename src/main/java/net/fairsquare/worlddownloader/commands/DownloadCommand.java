@@ -38,13 +38,9 @@ public class DownloadCommand implements CommandExecutor {
             return true;
         }
 
-        /* Get the server directory */
-        File worldContainer = plugin.getServer().getWorldContainer();
-
         /* Fetch the world directory */
-        File[] matchedWorldDirectories = worldContainer
-                .listFiles((dir, name) -> name.equals(worldName));
-        if (matchedWorldDirectories == null || matchedWorldDirectories.length != 1) {
+        File worldDirectory = getWorldDirectory(worldName);
+        if (worldDirectory == null) {
             if (args.length > 0) {
                 Message.WORLD_NOT_FOUND_NAME.send(sender, args[0]);
             } else {
@@ -52,7 +48,6 @@ public class DownloadCommand implements CommandExecutor {
             }
             return true;
         }
-        File worldDirectory = matchedWorldDirectories[0];
 
         /* Get the output directory and file */
         File outputFolder = getOutputFolder();
@@ -67,6 +62,14 @@ public class DownloadCommand implements CommandExecutor {
         return true;
     }
 
+    /**
+     * Parses the world name from either the location of the command sender (player) or the command
+     * arguments.
+     *
+     * @param sender The command sender.
+     * @param args   The command arguments.
+     * @return The name of the world, or null if the world name could not be established.
+     */
     private String getWorldName(CommandSender sender, String[] args) {
         if (args.length > 0) {
             return args[0];
@@ -77,54 +80,95 @@ public class DownloadCommand implements CommandExecutor {
         return null;
     }
 
+    /**
+     * Gets the world directory using the provided world name. Returns null if the world directory
+     * could not be retrieved (due to an invalid world name).
+     *
+     * @param worldName The name of the world to retrieve.
+     * @return The directory of the world, or null if no world could be found.
+     */
+    private File getWorldDirectory(String worldName) {
+        /* Get the server directory */
+        File worldContainer = plugin.getServer().getWorldContainer();
+
+        /* Fetch the world directory */
+        File[] matchedWorldDirectories = worldContainer
+                .listFiles((dir, name) -> name.equals(worldName));
+        if (matchedWorldDirectories == null || matchedWorldDirectories.length != 1) {
+            return null;
+        }
+        return matchedWorldDirectories[0];
+    }
+
+    /**
+     * This method zips the world and continues with uploading the world afterwards.
+     *
+     * @param sender         The command sender.
+     * @param worldDirectory The world directory to zip.
+     * @param destination    The destination file to zip to.
+     */
     private void zipWorld(final CommandSender sender, final File worldDirectory,
                           final File destination) {
         Message.CREATING_ZIP.send(sender, worldDirectory.getName());
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-off");
-        ZipTask zipTask = new ZipTask(plugin, worldDirectory, destination, new AsyncCallback<File>() {
-            @Override
-            public void onComplete(File response) {
-                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-on");
-                Message.CREATED_ZIP.send(sender, worldDirectory.getName());
-                uploadWorld(sender, response);
-            }
+        disableWorldSaving();
+        ZipTask zipTask = new ZipTask(plugin, worldDirectory, destination,
+                new AsyncCallback<File>() {
+                    @Override
+                    public void onComplete(File zippedWorldDirectory) {
+                        enableWorldSaving();
+                        Message.CREATED_ZIP.send(sender, worldDirectory.getName());
+                        uploadWorld(sender, zippedWorldDirectory);
+                    }
 
-            @Override
-            public void onFailure(Exception ex) {
-                Message.ERROR_CREATING_ZIP.send(sender);
-                Bukkit.getLogger().log(Level.SEVERE, "Could not create zip archive", ex);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception ex) {
+                        enableWorldSaving();
+                        Message.ERROR_CREATING_ZIP.send(sender);
+                        Bukkit.getLogger().log(Level.SEVERE, "Could not create zip archive", ex);
+                    }
+                });
         Bukkit.getScheduler().runTaskAsynchronously(plugin, zipTask);
     }
 
-    private void uploadWorld(final CommandSender sender, final File zipFile) {
+    /**
+     * This method uploads the world and sends the command sender the download URL.
+     *
+     * @param sender               The command sender.
+     * @param zippedWorldDirectory The zip file to upload.
+     */
+    private void uploadWorld(final CommandSender sender, final File zippedWorldDirectory) {
         Message.UPLOADING_ZIP.send(sender);
-        WebUploaderTask uploadTask = new WebUploaderTask(plugin, zipFile, new AsyncCallback<String>() {
-            @Override
-            public void onComplete(String response) {
-                Message.UPLOADED_ZIP.send(sender);
+        WebUploaderTask uploadTask = new WebUploaderTask(plugin, zippedWorldDirectory,
+                new AsyncCallback<String>() {
+                    @Override
+                    public void onComplete(String response) {
+                        Message.UPLOADED_ZIP.send(sender);
 
-                BaseComponent[] components = Message.DOWNLOAD_URL.getTextComponent(response);
-                if (components.length < 2 || !(components[1] instanceof TextComponent)) {
-                    System.out.println("invalid response");
-                    return;
-                }
-                TextComponent textComponent = (TextComponent) components[1];
-                textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, response));
-                components[1] = textComponent;
-                sender.spigot().sendMessage(textComponent);
-            }
+                        BaseComponent[] components = Message.DOWNLOAD_URL.getTextComponent(response);
+                        if (components.length < 2 || !(components[1] instanceof TextComponent)) {
+                            System.out.println("invalid response");
+                            return;
+                        }
+                        TextComponent textComponent = (TextComponent) components[1];
+                        textComponent.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, response));
+                        components[1] = textComponent;
+                        sender.spigot().sendMessage(textComponent);
+                    }
 
-            @Override
-            public void onFailure(Exception ex) {
-                Message.ERROR_UPLOADING_ZIP.send(sender);
-                Bukkit.getLogger().log(Level.SEVERE, "Could not upload zip archive", ex);
-            }
-        });
+                    @Override
+                    public void onFailure(Exception ex) {
+                        Message.ERROR_UPLOADING_ZIP.send(sender);
+                        Bukkit.getLogger().log(Level.SEVERE, "Could not upload zip archive", ex);
+                    }
+                });
         Bukkit.getScheduler().runTaskAsynchronously(plugin, uploadTask);
     }
 
+    /**
+     * Retrieves the plugin's data folder.
+     *
+     * @return The plugin's data folder.
+     */
     private File getDataFolder() {
         try {
             File dataFolder = plugin.getDataFolder();
@@ -140,6 +184,11 @@ public class DownloadCommand implements CommandExecutor {
         }
     }
 
+    /**
+     * Retrieves the world output folder.
+     *
+     * @return The world output folder.
+     */
     private File getOutputFolder() {
         File dataFolder = getDataFolder();
         if (dataFolder == null) {
@@ -160,10 +209,30 @@ public class DownloadCommand implements CommandExecutor {
         }
     }
 
+    /**
+     * Formats the name of the zip that is created.
+     *
+     * @param worldName The name of the world to zip.
+     * @return The name of the zip archive that contains the world.
+     */
     private String getZipName(String worldName) {
         LocalDateTime time = LocalDateTime.now(ZoneOffset.UTC);
         return worldName + "_" + time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm"))
                 + ".zip";
+    }
+
+    /**
+     * Enables automatic world saving.
+     */
+    private void enableWorldSaving() {
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-on");
+    }
+
+    /**
+     * Disables automatic world saving.
+     */
+    private void disableWorldSaving() {
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "save-off");
     }
 
 }
