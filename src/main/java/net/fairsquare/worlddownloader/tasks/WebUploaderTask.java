@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fairsquare.worlddownloader.WorldDownloader;
 import okhttp3.*;
+import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,9 +45,13 @@ public class WebUploaderTask extends AsyncTask<String> {
             } else {
                 JsonObject obj = new JsonParser().parse(responseBody.string()).getAsJsonObject();
                 if (obj.has("error")) {
-                    getCallback().onFailure(new RuntimeException(obj.get("error").getAsString()));
+                    Bukkit.getScheduler().runTask(getPlugin(),
+                            () -> getCallback().onFailure(
+                                    new RuntimeException(obj.get("error").getAsString())));
                 } else {
-                    getCallback().onComplete(downloadUrl + "/" + obj.get("file").getAsString());
+                    Bukkit.getScheduler().runTask(getPlugin(),
+                            () -> getCallback().onComplete(
+                                    downloadUrl + "/" + obj.get("file").getAsString()));
                 }
             }
         } catch (IOException e) {

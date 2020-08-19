@@ -3,6 +3,7 @@ package net.fairsquare.worlddownloader.commands;
 import net.fairsquare.worlddownloader.WorldDownloader;
 import net.fairsquare.worlddownloader.models.Message;
 import net.fairsquare.worlddownloader.tasks.AsyncCallback;
+import net.fairsquare.worlddownloader.tasks.DeleteTask;
 import net.fairsquare.worlddownloader.tasks.WebUploaderTask;
 import net.fairsquare.worlddownloader.tasks.ZipTask;
 import net.md_5.bungee.api.chat.BaseComponent;
@@ -149,6 +150,7 @@ public class DownloadCommand implements CommandExecutor {
                                     new ClickEvent(ClickEvent.Action.OPEN_URL, downloadUrl));
                         }
                         sender.spigot().sendMessage(components);
+                        postProcessing(zippedWorldDirectory);
                     }
 
                     @Override
@@ -158,6 +160,27 @@ public class DownloadCommand implements CommandExecutor {
                     }
                 });
         Bukkit.getScheduler().runTaskAsynchronously(plugin, uploadTask);
+    }
+
+    /**
+     * Post-processing after a world has been uploaded. Deletes the zip archive from the worlds
+     * directory again.
+     *
+     * @param zippedWorldDirectory The uploaded zip file.
+     */
+    private void postProcessing(final File zippedWorldDirectory) {
+        DeleteTask deleteTask = new DeleteTask(plugin, zippedWorldDirectory, new AsyncCallback<String>() {
+            @Override
+            public void onComplete(String response) {
+                // Do nothing
+            }
+
+            @Override
+            public void onFailure(Exception ex) {
+                // Do nothing
+            }
+        });
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, deleteTask);
     }
 
     /**
